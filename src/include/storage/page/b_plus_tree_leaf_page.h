@@ -50,9 +50,15 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   void SetNextPageId(page_id_t next_page_id);
   auto KeyAt(int index) const -> KeyType;
 
+  //add zjx
+  bool LookUp(const KeyType &key, ValueType& result,const KeyComparator& comparator) const;
+  bool Insert(const KeyType &key, ValueType& value,const KeyComparator& comparator) const;
+  void MoveData(const int mid,const int distance);
+  void MoveHalfTo(BPlusTreeLeafPage* new_page);
+
  private:
   page_id_t next_page_id_;
   // Flexible array member for page data.
-  MappingType array_[1];
+  MappingType array_[0];
 };
 }  // namespace bustub

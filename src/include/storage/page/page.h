@@ -42,8 +42,6 @@ class Page {
   /** @return the page id of this page */
   inline auto GetPageId() -> page_id_t { return page_id_; }
 
-  
-
   /** @return the pin count of this page */
   inline auto GetPinCount() -> int { return pin_count_; }
 

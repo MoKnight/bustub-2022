@@ -54,21 +54,21 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
       //nothing here
     } 
 
-      page_id_t new_page_id = AllocatePage();
-      Page* page = pages_+*new_frame_id;
-      if(page->IsDirty()) {
-        FlushPgImp(page->GetPageId());
-      }
+    page_id_t new_page_id = AllocatePage();
+    Page* page = pages_+*new_frame_id;
+    if(page->IsDirty()) {
+      FlushPgImp(page->GetPageId());
+    }
 
-      page->Reset(new_page_id);
-      page_table_->Insert(new_page_id,*new_frame_id);
-      replacer_->RecordAccess(*new_frame_id);
-      //how to pin?
-      replacer_->SetEvictable(*new_frame_id, false);
-      page->IncPinCnt();
-      *page_id = page->GetPageId();
+    page->Reset(new_page_id);
+    page_table_->Insert(new_page_id,*new_frame_id);
+    replacer_->RecordAccess(*new_frame_id);
+    //how to pin?
+    replacer_->SetEvictable(*new_frame_id, false);
+    page->IncPinCnt();
+    *page_id = page->GetPageId();
 
-      return page;
+    return page;
   } 
 }
 

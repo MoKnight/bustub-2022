@@ -42,8 +42,11 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   void SetKeyAt(int index, const KeyType &key);
   auto ValueAt(int index) const -> ValueType;
 
+  //add zjx
+  ValueType LookUp(const KeyType &key,const KeyComparator& comparator) const;
+
  private:
   // Flexible array member for page data.
-  MappingType array_[1];
+  MappingType array_[0];
 };
 }  // namespace bustub

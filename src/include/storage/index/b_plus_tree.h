@@ -62,6 +62,30 @@ class BPlusTree {
   auto Begin(const KeyType &key) -> INDEXITERATOR_TYPE;
   auto End() -> INDEXITERATOR_TYPE;
 
+  //add zjx
+  auto FindLeafPage(const KeyType &key, const OperationType operation,Transaction* transaction = nullptr)->B_PLUS_TREE_LEAF_PAGE_TYPE*;
+  auto NewTree()->B_PLUS_TREE_LEAF_PAGE_TYPE*;
+  auto SplitPage(BPlusTreePage* page)->BPlusTreePage*;
+  template <typename Page_type> Page_type *SplitPage(Page_type *node);
+  auto InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction)->bool;
+  auto InsertIntoLeafs( 
+    LeafPage *new_leaf, 
+    LeafPage *leaf,
+    const KeyType &key, 
+    const ValueType &value, 
+    Transaction *transaction)->bool;
+  auto InsertIntoInters( 
+    InternalPage *new_inter, 
+    InternalPage *inter,
+    const KeyType &key, 
+    const ValueType &value, 
+    Transaction *transaction)->bool;
+  auto InsertIntoParent(BPlusTreePage* page)->bool;
+  auto InsertIntoParent(BPlusTreePage* leaf, const KeyType &key, BPlusTreePage* new_leaf, Transaction *transaction)->bool;
+
+  //unlatch the pinned page and unpin the page in buffer pool
+  void UnLatchAndUnpinPageSet(Transaction* transaction, const OperationType operation);
+  
   // print the B+ tree
   void Print(BufferPoolManager *bpm);
 
@@ -89,6 +113,7 @@ class BPlusTree {
   KeyComparator comparator_;
   int leaf_max_size_;
   int internal_max_size_;
+  std::mutex root_id_mutex_;
 };
 
 }  // namespace bustub

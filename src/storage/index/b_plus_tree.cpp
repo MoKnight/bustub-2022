@@ -21,7 +21,9 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, BufferPoolManager *buffer_pool_manag
  * Helper function to decide whether current b+tree is empty
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return true; }
+auto BPLUSTREE_TYPE::IsEmpty() const -> bool {
+  return root_page_id_ == INVALID_PAGE_ID; 
+}
 /*****************************************************************************
  * SEARCH
  *****************************************************************************/
@@ -32,7 +34,18 @@ auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return true; }
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction) -> bool {
-  return false;
+  B_PLUS_TREE_LEAF_PAGE_TYPE *leaf_page = FindLeafPage(key, OperationType::Get, transaction);
+  if( leaf_page == nullptr ){
+    return false;
+  }
+
+  result->resize(1);
+  auto ret = leaf_page->Lookup(key, result[0], comparator_);
+  
+  UnLatchAndUnpinPageSet(transaction,OperationType::Get);
+  //buffer_pool_manager_->UnpinPage(leaf_page->GetPageId());//suppose need to relase now
+
+  return ret;
 }
 
 /*****************************************************************************
@@ -47,7 +60,183 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *transaction) -> bool {
-  return false;
+  BPlusTreeLeafPage *leaf_page = FindLeafPage(key, OperationType::Insert, transaction);
+  root_id_mutex_.lock();
+  if( leaf_page == nullptr ){
+    if( leaf_page = NewTree() == nullptr) {
+      root_id_mutex_.unlock();
+      return false;
+    }
+  }
+  root_id_mutex_.unlock();
+  return InsertIntoLeaf(key, value, transaction);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction)->bool{
+  // check if the value exists
+  B_PLUS_TREE_LEAF_PAGE_TYPE *leaf = FindLeafPage(key, OperationType::INSERT, transaction);
+  ValueType v;
+  bool isExit = leaf->Lookup(key, v, comparator_);
+  if (isExit) {
+    if( !buffer_pool_manager_->UnpinPage(leaf->GetPageId(), false)){ //unpin current leaf page
+      return false;
+    } 
+    // UnLatchAndUnpinPageSet(transaction, OperationType::INSERT); //unpin the other pages
+    return false;
+  }
+
+  if( page->GetSize == page->GetMaxSize() ){
+    // 分裂
+    BPlusTreeLeafPage *new_leaf = SplitPage(leaf)
+    if( new_leaf == nullptr ){
+      return false;
+    }
+    InsertIntoLeafs(new_leaf, leaf, key, value, comparator_);
+    // 将新节点插入父节点
+    InsertIntoParent(leaf, new_leaf->KeyAt(0), new_leaf, transaction);
+
+  } else {
+    leaf->Insert(key, value, comparator_ );//no need to check
+    if( !buffer_pool_manager_->UnpinPage(leaf->GetPageId(), true) ){
+      return false;
+    }
+  }
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::InsertIntoLeafs( 
+    LeafPage *new_leaf, 
+    LeafPage *leaf,
+    const KeyType &key, 
+    const ValueType &value, 
+    Transaction *transaction)->bool{
+  if( comparator_(new_leaf->KeyAt(0),key) >= 0  ){
+    leaf->Insert(key, value, comparator_ );
+  } else {
+    new_leaf->Insert(key, value, comparator_ );
+  }
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::InsertIntoInters( 
+    InternalPage *new_inter, 
+    InternalPage *inter,
+    const KeyType &key, 
+    const ValueType &value, 
+    Transaction *transaction)->bool{
+  KeyType lookupkey = new_inter->KeyAt(0);
+  if( lookupkey == -1 ) { //inserted page is internal page
+
+  } else {
+
+  }
+
+  if( comparator_(new_inter->KeyAt(0),key) >= 0  ){
+    inter->Insert(key, value, comparator_ );
+  } else {
+    new_inter->Insert(key, value, comparator_ );
+  }
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+template <typename Page_type> Page_type *BPLUSTREE_TYPE::SplitPage(Page_type *page) {
+    page_id_t new_page_id;
+    Page *new_buffer_page = buffer_pool_manager_->NewPage(new_page_id);
+    if (new_buffer_page == nullptr) {
+        return nullptr;
+    }
+
+    Page_type *new_page = reinterpret_cast<Page_type *>(new_buffer_page->GetData());
+    new_page->Init(new_page_id, page->GetParentPageId());
+    page->MoveHalfTo(new_page);
+    return new_page;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::InsertIntoParent(
+  BPlusTreePage* leaf, 
+  const KeyType &key, 
+  BPlusTreePage* new_leaf, 
+  Transaction *transaction)->bool
+{
+  Page* buffer_parent_page = buffer_pool_manager_->FetchPage(page->GetParentPageId());
+  if( buffer_parent_page == nullptr ){
+    return false;
+  } 
+  BPlusTreeInternalPage* parent_page = reinterpret_cast<BPlusTreeInternalPage*>(buffer_parent_page->GetData());
+  if( parent_page->GetSize() == parent_page->GetMaxSize() ){
+    BPlusTreeInternalPage* new_parent_page = SplitPage(parent_page);
+    if( new_parent_page == nullptr ){
+      return false;
+    }
+    InsertIntoInters(new_parent_page, parent_page, key, new_leaf, comparator_);
+    // 将新节点插入父节点
+    InsertIntoParent(new_parent_page, new_leaf->KeyAt(0), parent_page, transaction);
+  } else {
+    parent_page->Insert(leaf,key,new_leaf,comparator_); //insert the two pages into parent page
+  }
+}
+
+
+// INDEX_TEMPLATE_ARGUMENTS
+// auto BPLUSTREE_TYPE::SplitPage(BPlusTreePage* page)->bool{
+//   if( page->GetParentPageId() == INVALID_PAGE_ID ){
+//     if( page->IsLeafPage() ){
+//       //new a internal page
+//       page_id_t* new_inter_page_id;
+//       Page* new_buffer_inter_page = buffer_pool_manager_->NewPage(new_inter_page_id);
+//       if( new_buffer_inter_page == nullptr ){
+//         return false;
+//       }
+//       //new a leaf page
+//       page_id_t* new_leaf_page_id;
+//       Page* new_buffer_leaf_page = buffer_pool_manager_->NewPage(new_leaf_page_id);
+//       if( new_buffer_leaf_page == nullptr ){
+//         buffer_pool_manager_->UnpinPage(new_inter_page_id);
+//         return false;
+//       }
+//       //move data
+//       BPlusTreeInternalPage* new_inter_page = reinterpret_cast<BPlusTreeLeafPage*>(new_buffer_page->GetData());
+//       BPlusTreeLeafPage* new_leaf_page = reinterpret_cast<BPlusTreeLeafPage*>(new_buffer_page->GetData());
+//       new_inter_page->Init(new_inter_page_id,INVALID_PAGE_ID,internal_max_size_);
+//       new_leaf_page->Init(new_leaf_page_id,new_inter_page_id,leaf_max_size_);
+//       // MoveHalfData();
+//       // new_inter_page->Insert(page);
+//       // new_inter_page->Insert(new_leaf_page);
+//       page->SetParentPageId(new_inter_page_id);
+//       buffer_pool_manager_->UnpinPage(new_inter_page_i);
+//       buffer_pool_manager_->UnpinPage(new_leaf_page_id);
+//     }
+//   } else {
+//     InsertIntoParent();
+//     BPlusTreePage* parent_page = buffer_pool_manager_->FetchPage(page->GetParentPageId());
+//     if( parent_page == nullptr ){
+//       return false;
+//     }
+
+//     KeyType key = page->KeyAt(0);
+
+//     if( parent_page->GetSize() == parent_page->GetMaxSize() ){
+//       SplitPage(parent_page);
+//     }
+    
+
+//   }
+// }
+
+// INDEX_TEMPLATE_ARGUMENTS
+// auto BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage* page)->bool{
+  
+// }
+
+INDEX_TEMPLATE_ARGUMENTS
+void BPLUSTREE_TYPE::UnLatchAndUnpinPageSet(Transaction* transaction, const OperationType operation){
+  if( operation == OperationType::Get() ){
+
+  } else {
+
+  }
 }
 
 /*****************************************************************************
@@ -94,7 +283,88 @@ auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); 
  * @return Page id of the root of this tree
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t { return 0; }
+auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t { 
+  return root_page_id_; 
+}
+
+/**
+ * @brief 
+ * 
+ * @param key 
+ * @param operation 
+ * @param transaction 
+ * @return B_PLUS_TREE_LEAF_PAGE_TYPE* remember to unpin by the caller
+ */
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::FindLeafPage(const KeyType &key,const OperationType operation,Transaction* transaction)->B_PLUS_TREE_LEAF_PAGE_TYPE*{
+  // root_id_mutex_.lock();
+  if( IsEmpty() ) {
+      // root_id_mutex_.unlock();
+      return nullptr;
+  }
+  
+  auto page = buffer_pool_manager_->FetchPage(GetRootPageId());
+  if( page == nullptr ){
+    return nullptr;
+  }
+
+  BPlusTreePage *tree_page = reinterpret_cast<BPlusTreePage *>(page->GetData());
+  while( !tree_page->IsLeafPage() ){    
+    page_id_t next_page_id = internalPage->Lookup(key, comparator_);
+    Page* last_page = page;  //maintain the parent page
+    page = buffer_pool_manager_->FetchPage(next_page_id);
+    if( page == nullptr ){
+      return nullptr;
+    }
+
+    tree_page = reinterpret_cast<BPlusTreePage *>(page->GetData());
+
+    //lock check
+    if (operation == OperationType::GET) {
+        page->RLatch();
+    } else {
+        page->WLatch();
+    }
+
+    if (transaction != nullptr) {
+      // if (operation == OperationType::GET) {
+      //     // 释放祖先节点的锁
+      //     UnLatchAndUnpinPageSet(transaction, operation);
+      //     assert(transaction->GetPageSet()->size() == 0);
+      // } else {
+      //     // 当前节点是safe的情况下，才释祖先父节点的锁
+      //     if (bp->IsSafe(operation)) {
+      //         UnLatchAndUnpinPageSet(transaction, operation);
+      //     }
+        // }
+    } else {
+      assert(operation == OperationType::GET);
+      last_page->RUnlatch();
+      // if (tree_page->IsRootPage()) {
+      //     root_id_mutex_.unlock();
+      // }
+      buffer_pool_manager_->UnpinPage(lastPage->GetPageId(), false);
+    }
+  }
+  return static_cast<BPlusTreeLeafPage *>(tree_page); 
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::NewTree()->B_PLUS_TREE_LEAF_PAGE_TYPE* {
+  page_id_t page_id;
+  Page* new_page = buffer_pool_manager_->NewPage(page_id);
+  if( new_page == nullptr ) {
+    return nullptr;
+  }
+
+  root_id_mutex_.lock();
+  root_page_id_ = page_id;
+  root_id_mutex_.unlock();
+  BPlusTreeLeafPage* leaf_page = reinterpret_cast<BPlusTreeLeafPage*>(new_page->GetData());
+  buffer_pool_manager_->UnpinPage(page_id);
+  leaf_page->Init(page_id, INVALID_PAGE_ID,leaf_max_size_);
+  return leaf_page;
+}
 
 /*****************************************************************************
  * UTILITIES AND DEBUG
