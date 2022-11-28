@@ -65,7 +65,8 @@ class BPlusTree {
   //add zjx
   auto FindLeafPage(const KeyType &key, const OperationType operation,Transaction* transaction = nullptr)->B_PLUS_TREE_LEAF_PAGE_TYPE*;
   auto NewTree()->B_PLUS_TREE_LEAF_PAGE_TYPE*;
-  auto SplitPage(BPlusTreePage* page)->BPlusTreePage*;
+  auto SplitPage(LeafPage * page)->LeafPage *;
+  auto SplitPage(InternalPage *page)->InternalPage *;
   template <typename Page_type> Page_type *SplitPage(Page_type *node);
   auto InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction)->bool;
   auto InsertIntoLeafs( 
@@ -83,6 +84,8 @@ class BPlusTree {
     Transaction *transaction)->bool;
   auto InsertIntoParent(BPlusTreePage* page)->bool;
   auto InsertIntoParent(BPlusTreePage* leaf, const KeyType &key, BPlusTreePage* new_leaf, Transaction *transaction)->bool;
+
+  void RemoveFromLeaf(LeafPage* leaf_page,const KeyType &key, Transaction *transaction);
 
   //unlatch the pinned page and unpin the page in buffer pool
   void UnLatchAndUnpinPageSet(Transaction* transaction, const OperationType operation);

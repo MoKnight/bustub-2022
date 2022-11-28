@@ -92,7 +92,7 @@ auto BPLUSTREE_TYPE::InsertIntoLeaf(const KeyType &key, const ValueType &value, 
     if( new_leaf == nullptr ){
       return false;
     }
-    InsertIntoLeafs(new_leaf, leaf, key, value, comparator_);
+    InsertIntoLeafs(leaf, new_leaf, key, value, comparator_);
     //insert into parent page
     InsertIntoParent(leaf, new_leaf->KeyAt(0), new_leaf, transaction);
 
@@ -106,8 +106,8 @@ auto BPLUSTREE_TYPE::InsertIntoLeaf(const KeyType &key, const ValueType &value, 
 
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::InsertIntoLeafs( 
-    LeafPage *new_leaf, 
-    LeafPage *leaf,
+    LeafPage *leaf, 
+    LeafPage *new_leaf,
     const KeyType &key, 
     const ValueType &value, 
     Transaction *transaction)->bool{
@@ -134,15 +134,30 @@ auto BPLUSTREE_TYPE::InsertIntoInters(
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-template <typename Page_type> Page_type *BPLUSTREE_TYPE::SplitPage(Page_type *page) {
+auto BPLUSTREE_TYPE::SplitPage(InternalPage *page)->InternalPage *{
     page_id_t new_page_id;
     Page *new_buffer_page = buffer_pool_manager_->NewPage(new_page_id);
     if (new_buffer_page == nullptr) {
         return nullptr;
     }
 
-    Page_type *new_page = reinterpret_cast<Page_type *>(new_buffer_page->GetData());
-    new_page->Init(new_page_id, page->GetParentPageId());
+    InternalPage *new_page = reinterpret_cast<InternalPage *>(new_buffer_page->GetData());
+    if( Page_type )
+    new_page->Init(new_page_id, page->GetParentPageId(),internal_max_size_);
+    page->MoveHalfTo(new_page);
+    return new_page;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::SplitPage(LeafPage *page)->LeafPage *{
+    page_id_t new_page_id;
+    Page *new_buffer_page = buffer_pool_manager_->NewPage(new_page_id);
+    if (new_buffer_page == nullptr) {
+        return nullptr;
+    }
+
+    LeafPage *new_page = reinterpret_cast<LeafPage *>(new_buffer_page->GetData());
+    new_page->Init(new_page_id, page->GetParentPageId(),leaf_max_size_);
     page->MoveHalfTo(new_page);
     return new_page;
 }
@@ -154,22 +169,43 @@ auto BPLUSTREE_TYPE::InsertIntoParent(
   BPlusTreePage* new_leaf, 
   Transaction *transaction)->bool
 {
-  Page* buffer_parent_page = buffer_pool_manager_->FetchPage(page->GetParentPageId());
-  if( buffer_parent_page == nullptr ){
-    return false;
-  } 
-  BPlusTreeInternalPage* parent_page = reinterpret_cast<BPlusTreeInternalPage*>(buffer_parent_page->GetData());
-  if( parent_page->GetSize() == parent_page->GetMaxSize() ){
-    BPlusTreeInternalPage* new_parent_page = SplitPage(parent_page);
-    if( new_parent_page == nullptr ){
-      return false;
+  root_id_mutex_.lock();
+  if( root_page_id_ == leaf->GetPageId() ) {
+    page_id_t new_parent_page_id;
+    Page *new_buffer_page = buffer_pool_manager_->NewPage(new_parent_page_id);
+    if (new_buffer_page == nullptr) {
+        return false;
     }
-    //insert into new pages
-    InsertIntoInters(new_parent_page, parent_page, leaf, key, new_leaf, comparator_);
-    return InsertIntoParent(parent_page,new_parent_page->KeyAt(0), new_parent_page, transaction); //again
+    root_page_id_ = new_parent_page_id;
+    UpdateRootPageId();
+    root_id_mutex_.unlock();
+    BPlusTreeInternalPage *new_parent_page = reinterpret_cast<BPlusTreeInternalPage *>(new_buffer_page->GetData());
+    new_parent_page->Init(new_parent_page_id,INVALID_PAGE_ID,internal_max_size_);
+    new_parent_page->InsertByIndex(-1,INVALID_PAGE_ID,leaf->GetPageId());
+    new_parent_page->InsertByIndex(0,key,new_leaf->GetPageId());
+    //need to unpin
+    return true;
   } else {
-    return parent_page->Insert(key,new_leaf,comparator_); //insert the two pages into parent page
+    root_id_mutex_.unlock();
+    Page* buffer_parent_page = buffer_pool_manager_->FetchPage(page->GetParentPageId());
+    if( buffer_parent_page == nullptr ){
+      return false;
+    } 
+    BPlusTreeInternalPage* parent_page = reinterpret_cast<BPlusTreeInternalPage*>(buffer_parent_page->GetData());
+    if( parent_page->GetSize() == parent_page->GetMaxSize() ){
+      BPlusTreeInternalPage* new_parent_page = SplitPage(parent_page);
+      if( new_parent_page == nullptr ){
+        return false;
+      }
+      //insert into new pages
+      InsertIntoInters(new_parent_page, parent_page, leaf, key, new_leaf, comparator_);
+      return InsertIntoParent(parent_page,new_parent_page->KeyAt(0), new_parent_page, transaction); //again
+    } else {
+      return parent_page->Insert(key,new_leaf,comparator_); //insert the two pages into parent page
+    }
   }
+
+  
 }
 
 
@@ -193,7 +229,26 @@ auto BPLUSTREE_TYPE::InsertIntoParent(
  * necessary.
  */
 INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {}
+void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
+  if( IsEmpty() ){
+    return;
+  } 
+
+  BPlusTreeLeafPage* page = FindLeafPage(key, OperationType::DELETE, transaction);
+  if( page == nullptr ){
+    return 
+  }
+  RemoveFromLeaf(page,key,transaction);
+  buffer_pool_manager_->UnpinPage(page);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void BPLUSTREE_TYPE::RemoveFromLeaf(LeafPage* leaf_page,const KeyType &key, Transaction *transaction){
+  leaf_page->Remove(key);
+  if( leaf_page->GetSize() < leaf_page->GetMinSize()){
+    
+  }
+}
 
 /*****************************************************************************
  * INDEX ITERATOR
@@ -292,6 +347,11 @@ auto BPLUSTREE_TYPE::FindLeafPage(const KeyType &key,const OperationType operati
   return static_cast<BPlusTreeLeafPage *>(tree_page); 
 }
 
+/**
+ * @brief create a new bplus tree, don't need to lock
+ * 
+ * @return B_PLUS_TREE_LEAF_PAGE_TYPE* 
+ */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::NewTree()->B_PLUS_TREE_LEAF_PAGE_TYPE* {
   page_id_t page_id;
@@ -300,9 +360,7 @@ auto BPLUSTREE_TYPE::NewTree()->B_PLUS_TREE_LEAF_PAGE_TYPE* {
     return nullptr;
   }
 
-  root_id_mutex_.lock();
   root_page_id_ = page_id;
-  root_id_mutex_.unlock();
   BPlusTreeLeafPage* leaf_page = reinterpret_cast<BPlusTreeLeafPage*>(new_page->GetData());
   buffer_pool_manager_->UnpinPage(page_id);
   leaf_page->Init(page_id, INVALID_PAGE_ID,leaf_max_size_);

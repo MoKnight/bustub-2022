@@ -24,7 +24,7 @@ namespace bustub {
 
 #define INDEX_TEMPLATE_ARGUMENTS template <typename KeyType, typename ValueType, typename KeyComparator>
 
-enum class OperationType{INVALID_OPERATION = -1,Get,DELTE,INSERT};
+enum class OperationType{INVALID_OPERATION = -1,Get,DELETE,INSERT};
 
 // define page type enum
 enum class IndexPageType { INVALID_INDEX_PAGE = 0, LEAF_PAGE, INTERNAL_PAGE };
