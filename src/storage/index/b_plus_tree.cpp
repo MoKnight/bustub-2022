@@ -87,13 +87,13 @@ auto BPLUSTREE_TYPE::InsertIntoLeaf(const KeyType &key, const ValueType &value, 
   }
 
   if( page->GetSize == page->GetMaxSize() ){
-    // 分裂
+    //split the old pages
     BPlusTreeLeafPage *new_leaf = SplitPage(leaf)
     if( new_leaf == nullptr ){
       return false;
     }
     InsertIntoLeafs(new_leaf, leaf, key, value, comparator_);
-    // 将新节点插入父节点
+    //insert into parent page
     InsertIntoParent(leaf, new_leaf->KeyAt(0), new_leaf, transaction);
 
   } else {
@@ -122,21 +122,15 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::InsertIntoInters( 
     InternalPage *new_inter, 
     InternalPage *inter,
+    const ValueType &old_value,
     const KeyType &key, 
     const ValueType &value, 
     Transaction *transaction)->bool{
-  KeyType lookupkey = new_inter->KeyAt(0);
-  if( lookupkey == -1 ) { //inserted page is internal page
-
-  } else {
-
+  int index = inter->ValueIndex(old_value);
+  if( index == -1 ){
+    index = new_inter->ValueIndex(old_value);
   }
-
-  if( comparator_(new_inter->KeyAt(0),key) >= 0  ){
-    inter->Insert(key, value, comparator_ );
-  } else {
-    new_inter->Insert(key, value, comparator_ );
-  }
+  new_inter->InsertByIndex(index,key,value); //insert into internal page
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -170,74 +164,23 @@ auto BPLUSTREE_TYPE::InsertIntoParent(
     if( new_parent_page == nullptr ){
       return false;
     }
-    InsertIntoInters(new_parent_page, parent_page, key, new_leaf, comparator_);
-    // 将新节点插入父节点
-    InsertIntoParent(new_parent_page, new_leaf->KeyAt(0), parent_page, transaction);
+    //insert into new pages
+    InsertIntoInters(new_parent_page, parent_page, leaf, key, new_leaf, comparator_);
+    return InsertIntoParent(parent_page,new_parent_page->KeyAt(0), new_parent_page, transaction); //again
   } else {
-    parent_page->Insert(leaf,key,new_leaf,comparator_); //insert the two pages into parent page
+    return parent_page->Insert(key,new_leaf,comparator_); //insert the two pages into parent page
   }
 }
 
 
 // INDEX_TEMPLATE_ARGUMENTS
-// auto BPLUSTREE_TYPE::SplitPage(BPlusTreePage* page)->bool{
-//   if( page->GetParentPageId() == INVALID_PAGE_ID ){
-//     if( page->IsLeafPage() ){
-//       //new a internal page
-//       page_id_t* new_inter_page_id;
-//       Page* new_buffer_inter_page = buffer_pool_manager_->NewPage(new_inter_page_id);
-//       if( new_buffer_inter_page == nullptr ){
-//         return false;
-//       }
-//       //new a leaf page
-//       page_id_t* new_leaf_page_id;
-//       Page* new_buffer_leaf_page = buffer_pool_manager_->NewPage(new_leaf_page_id);
-//       if( new_buffer_leaf_page == nullptr ){
-//         buffer_pool_manager_->UnpinPage(new_inter_page_id);
-//         return false;
-//       }
-//       //move data
-//       BPlusTreeInternalPage* new_inter_page = reinterpret_cast<BPlusTreeLeafPage*>(new_buffer_page->GetData());
-//       BPlusTreeLeafPage* new_leaf_page = reinterpret_cast<BPlusTreeLeafPage*>(new_buffer_page->GetData());
-//       new_inter_page->Init(new_inter_page_id,INVALID_PAGE_ID,internal_max_size_);
-//       new_leaf_page->Init(new_leaf_page_id,new_inter_page_id,leaf_max_size_);
-//       // MoveHalfData();
-//       // new_inter_page->Insert(page);
-//       // new_inter_page->Insert(new_leaf_page);
-//       page->SetParentPageId(new_inter_page_id);
-//       buffer_pool_manager_->UnpinPage(new_inter_page_i);
-//       buffer_pool_manager_->UnpinPage(new_leaf_page_id);
-//     }
+// void BPLUSTREE_TYPE::UnLatchAndUnpinPageSet(Transaction* transaction, const OperationType operation){
+//   if( operation == OperationType::Get() ){
+
 //   } else {
-//     InsertIntoParent();
-//     BPlusTreePage* parent_page = buffer_pool_manager_->FetchPage(page->GetParentPageId());
-//     if( parent_page == nullptr ){
-//       return false;
-//     }
-
-//     KeyType key = page->KeyAt(0);
-
-//     if( parent_page->GetSize() == parent_page->GetMaxSize() ){
-//       SplitPage(parent_page);
-//     }
-    
 
 //   }
 // }
-
-// INDEX_TEMPLATE_ARGUMENTS
-// auto BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage* page)->bool{
-  
-// }
-
-INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::UnLatchAndUnpinPageSet(Transaction* transaction, const OperationType operation){
-  if( operation == OperationType::Get() ){
-
-  } else {
-
-  }
-}
 
 /*****************************************************************************
  * REMOVE

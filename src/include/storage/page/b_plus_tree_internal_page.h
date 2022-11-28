@@ -43,7 +43,18 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   auto ValueAt(int index) const -> ValueType;
 
   //add zjx
-  ValueType LookUp(const KeyType &key,const KeyComparator& comparator) const;
+  auto ValueIndex(const ValueType &value) const->int;
+  auto Lookup(const KeyType &key,const KeyComparator &comparator) const->ValueType;
+  auto Insert(
+    const KeyType &key, 
+    const ValueType & new_leaf_id, 
+    const KeyComparator& comparator)->bool;
+  auto InsertByIndex(
+    const int index,
+    const KeyType &key, 
+    const ValueType & new_leaf_id)->bool;
+  void MoveData(const int mid,const int distance);
+  void MoveHalfTo(BPlusTreeInternalPage* new_page);
 
  private:
   // Flexible array member for page data.

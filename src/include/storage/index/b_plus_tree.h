@@ -77,6 +77,7 @@ class BPlusTree {
   auto InsertIntoInters( 
     InternalPage *new_inter, 
     InternalPage *inter,
+    const ValueType &old_value,
     const KeyType &key, 
     const ValueType &value, 
     Transaction *transaction)->bool;

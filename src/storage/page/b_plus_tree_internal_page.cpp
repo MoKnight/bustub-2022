@@ -57,9 +57,21 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType {
   return value;
 }
 
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const->int {
+    for (int i = 0; i < GetSize(); i++) {
+        if (value == ValueAt(i)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 //add zjx
 INDEX_TEMPLATE_ARGUMENTS
-ValueType B_PLUS_TREE_INTERNAL_PAGE_TYPE::LookUp(const KeyType &key,const KeyComparator& comparator) const{
+ValueType
+B_PLUS_TREE_INTERNAL_PAGE_TYPE::Lookup(const KeyType &key,
+                                       const KeyComparator &comparator) const{  
   int first = 1;
   int last = GetSize()-1;
   int mid;
@@ -67,7 +79,7 @@ ValueType B_PLUS_TREE_INTERNAL_PAGE_TYPE::LookUp(const KeyType &key,const KeyCom
 
   while( first <= last ){
     mid = (first + last)/2;
-    comp_res = comparator(ValueAt(mid),key);
+    comp_res = comparator(KeyAt(mid),key);
     if( comp_res > 0 ){
       last = mid - 1;
     } else if( comp_res < 0 ) {
@@ -75,16 +87,77 @@ ValueType B_PLUS_TREE_INTERNAL_PAGE_TYPE::LookUp(const KeyType &key,const KeyCom
     } else {
       break;
     }
-
-  if (mid >= GetSize()) {
-      return array[GetSize() - 1].second;
   }
 
-  if (comparator(array[mid].first, key) == 0) {
+  if (comparator(array[mid].first, key) <= 0) {
       return array[mid].second;
   } else {
       return array[mid - 1].second;
   }
+}
+                                       
+
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Insert(
+    const KeyType &key, 
+    const ValueType & new_leaf_id, 
+    const KeyComparator& comparator)->bool{
+  int first = 1;
+  int last = GetSize()-1;
+  int mid;
+  int comp_res;
+
+  while( first <= last ){
+    mid = (first + last)/2;
+    comp_res = comparator(KeyAt(mid),key);
+    if( comp_res > 0 ){
+      last = mid - 1;
+    } else if( comp_res < 0 ) {
+      first = mid+1;
+    } else {
+      break;
+    }
+  }
+
+  if (comparator(array[mid].first, key) == 0) {
+    return false;
+  }
+
+  if (comparator(array[mid].first, key) < 0) {
+    MoveData(mid+1,1);
+    array_[mid+1].first = key;
+    array_[mid+1].second = value;
+  } else { //insert before never happen
+    MoveData(mid,1);
+    array_[mid].first = key;
+    array_[mid].second = value;
+  }
+
+  return true;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertByIndex(
+    const int index,
+    const KeyType &key, 
+    const ValueType & new_leaf_id)->bool{
+  assert( index>=0 && index < GetMaxSize()-1 );
+  MoveData(index+1,1);
+  array_[index+1].first = key;
+  array_[index+1].second = value;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveData(const int mid,const int distance) {
+  memmove(array_[mid+distance], array_[mid],GetSize()-mid);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveHalfTo(BPlusTreeInternalPage* new_page) {
+  int mid = GetSize()/2;
+  memmove(array_[mid], new_page->array_[0],GetSize()-mid);
+  //maybe set an InValid id is needed?
+  //new_page->array_[0].first = INVLAID_PAGE_ID;
 }
 
 // valuetype for internalNode should be page id_t

@@ -69,7 +69,7 @@ bool B_PLUS_TREE_LEAF_PAGE_TYPE::LookUp(const KeyType &key, ValueType& result,co
 
   while( first <= last ){
     mid = (first + last)/2;
-    comp_res = comparator(ValueAt(mid),key);
+    comp_res = comparator(KeyAt(mid),key);
     if( comp_res > 0 ){
       last = mid - 1;
     } else if( comp_res < 0 ) {
@@ -77,6 +77,7 @@ bool B_PLUS_TREE_LEAF_PAGE_TYPE::LookUp(const KeyType &key, ValueType& result,co
     } else {
       break;
     }
+  }
 
     if (comparator(array[mid].first, key) == 0) {
       result = array_[mid].second;
@@ -84,8 +85,7 @@ bool B_PLUS_TREE_LEAF_PAGE_TYPE::LookUp(const KeyType &key, ValueType& result,co
     } else {
       return false;
     }
-  } 
-}
+} 
 
 INDEX_TEMPLATE_ARGUMENTS
 bool B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, ValueType& value,const KeyComparator& comparator) const {
