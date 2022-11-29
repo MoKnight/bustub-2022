@@ -53,8 +53,14 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   //add zjx
   bool LookUp(const KeyType &key, ValueType& result,const KeyComparator& comparator) const;
   bool Insert(const KeyType &key, ValueType& value,const KeyComparator& comparator) const;
+  void Remove(const KeyType &key, const KeyComparator& comparator) const;
   void MoveData(const int mid,const int distance);
   void MoveHalfTo(BPlusTreeLeafPage* new_page);
+  void MoveToLast(BPlusTreeLeafPage* sibling_page);
+  void MoveToFirst(BPlusTreeLeafPage* sibling_page);
+  void MoveLastToFirst(BPlusTreeLeafPage* page);
+  void MoveFirstToLast(BPlusTreeLeafPage* page);
+  MappingType* GetArray();
 
  private:
   page_id_t next_page_id_;

@@ -79,12 +79,12 @@ bool B_PLUS_TREE_LEAF_PAGE_TYPE::LookUp(const KeyType &key, ValueType& result,co
     }
   }
 
-    if (comparator(array[mid].first, key) == 0) {
-      result = array_[mid].second;
-      return true;
-    } else {
-      return false;
-    }
+  if (comparator(array[mid].first, key) == 0) {
+    result = array_[mid].second;
+    return true;
+  } else {
+    return false;
+  }
 } 
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -112,7 +112,33 @@ bool B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, ValueType& value,con
       array_[mid+1] = value;
     }
   } 
+  IncreaseSize(1);
   return true;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::Remove(const KeyType &key, const KeyComparator& comparator) const{
+  int first = 0;
+  int last = GetSize()-1;
+  int mid;
+  int comp_res;
+
+  while( first <= last ){
+    mid = (first + last)/2;
+    comp_res = comparator(KeyAt(mid),key);
+    if( comp_res > 0 ){
+      last = mid - 1;
+    } else if( comp_res < 0 ) {
+      first = mid+1;
+    } else {
+      break;
+    }
+  }
+
+  if (comparator(array[mid].first, key) == 0) {
+    MoveData(mid,-1);
+    IncreaseSize(-1);
+  } 
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -123,7 +149,45 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveData(const int mid,const int distance) {
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveHalfTo(BPlusTreeLeafPage* new_page) {
   int mid = GetSize()/2;
-  memmove(array_[mid], new_page->array_[0],GetSize()-mid);
+  memmove(array_[mid], new_page->GetArray(),GetSize()-mid);
+  IncreaseSize(-mid);
+  page->IncreaseSize(mid);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveToLast(BPlusTreeLeafPage* sibling_page){
+  memmove(sibling_page->GetArray()+sibling_page->GetSize(), array_[0], GetSize());
+  sibling_page->IncreaseSize(GetSize());
+  IncreaseSize(GetSize());
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveToFirst(BPlusTreeLeafPage* sibling_page){
+  sibling_page->MoveData(0,GetSize());
+  memmove(sibling_page->GetArray(), array_[0], GetSize());
+  sibling_page->IncreaseSize(GetSize());
+  IncreaseSize(GetSize());
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveLastToFirst(BPlusTreeLeafPage* page){
+  page->MoveData(0,1);
+  memmove(page->GetArray()+page->GetSize()-1, array_[0],1);
+  IncreaseSize(-1);
+  page->IncreaseSize(1);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveFirstToLast(BPlusTreeLeafPage* page){
+  memmove(page->GetArray()+page->GetSize(), array_[0],1);
+  MoveData(1,-1);
+  IncreaseSize(-1);
+  page->IncreaseSize(1);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+MappingType* B_PLUS_TREE_LEAF_PAGE_TYPE::GetArray(){
+  return array_;
 }
 
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;

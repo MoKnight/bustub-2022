@@ -63,6 +63,7 @@ class BPlusTree {
   auto End() -> INDEXITERATOR_TYPE;
 
   //add zjx
+  //Insert part
   auto FindLeafPage(const KeyType &key, const OperationType operation,Transaction* transaction = nullptr)->B_PLUS_TREE_LEAF_PAGE_TYPE*;
   auto NewTree()->B_PLUS_TREE_LEAF_PAGE_TYPE*;
   auto SplitPage(LeafPage * page)->LeafPage *;
@@ -85,7 +86,13 @@ class BPlusTree {
   auto InsertIntoParent(BPlusTreePage* page)->bool;
   auto InsertIntoParent(BPlusTreePage* leaf, const KeyType &key, BPlusTreePage* new_leaf, Transaction *transaction)->bool;
 
-  void RemoveFromLeaf(LeafPage* leaf_page,const KeyType &key, Transaction *transaction);
+  //Move part
+  auto AjustRoot(BPlusTreePage* leaf_page,Transaction *transaction)->bool;
+  template <typename Page_type> auto FindSibling(Page_type *node, bool &isLeftSibling)->Page_type*;
+  template <typename Page_type> auto MergeOrRedistribute(Page_type* page, Transaction* transaction)->bool;
+  template <typename Page_type> auto Merge(Page_type* page, Page_type* sibling_page,bool isLeft)->bool;
+  template <typename Page_type> auto Redistribute(Page_type* page, Page_type* sibling_page,InternalPage* parent_page,bool isLeft)->bool;
+  
 
   //unlatch the pinned page and unpin the page in buffer pool
   void UnLatchAndUnpinPageSet(Transaction* transaction, const OperationType operation);
@@ -104,6 +111,7 @@ class BPlusTree {
 
  private:
   void UpdateRootPageId(int insert_record = 0);
+  void DeleteRootPageId();
 
   /* Debug Routines for FREE!! */
   void ToGraph(BPlusTreePage *page, BufferPoolManager *bpm, std::ofstream &out) const;

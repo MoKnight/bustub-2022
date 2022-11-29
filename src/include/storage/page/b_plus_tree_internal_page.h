@@ -45,6 +45,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   //add zjx
   auto ValueIndex(const ValueType &value) const->int;
   auto Lookup(const KeyType &key,const KeyComparator &comparator) const->ValueType;
+  void Remove(const ValueType &value,const KeyComparator &comparator);
   auto Insert(
     const KeyType &key, 
     const ValueType & new_leaf_id, 
@@ -55,6 +56,11 @@ class BPlusTreeInternalPage : public BPlusTreePage {
     const ValueType & new_leaf_id)->bool;
   void MoveData(const int mid,const int distance);
   void MoveHalfTo(BPlusTreeInternalPage* new_page);
+  void MoveToLast(BPlusTreeInternalPage* sibling_page);
+  void MoveToFirst(BPlusTreeInternalPage* sibling_page);
+  void MoveLastToFirst(BPlusTreeInternalPage* page);
+  void MoveFirstToLast(BPlusTreeInternalPage* page);
+  MappingType* GetArray();
 
  private:
   // Flexible array member for page data.

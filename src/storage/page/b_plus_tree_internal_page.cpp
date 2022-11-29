@@ -38,12 +38,14 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::KeyAt(int index) const -> KeyType {
   // replace with your own code
+  assert(index>=0 && index < GetSize()-1);
   KeyType key = array_.at[index].first;
   return key;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key) {
+  assert(index>=0 && index < GetSize()-1);
   array_.at[index].first = key;
 }
 
@@ -53,18 +55,19 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key) {
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType { 
+  assert(index>=0 && index < GetSize()-1);
   ValueType value = array_.at[index].second;
   return value;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const->int {
-    for (int i = 0; i < GetSize(); i++) {
-        if (value == ValueAt(i)) {
-            return i;
-        }
-    }
-    return -1;
+  for (int i = 0; i < GetSize(); i++) {
+      if (value == ValueAt(i)) {
+          return i;
+      }
+  }
+  return -1;
 }
 
 //add zjx
@@ -133,7 +136,15 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Insert(
     array_[mid].second = value;
   }
 
+  IncreaseSize(1);
   return true;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Remove(const ValueType &value,const KeyComparator &comparator) {
+  int index = ValueIndex(value);
+  MoveData(index,-1);
+  IncreaseSize(-1);
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -155,9 +166,45 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveData(const int mid,const int distance) 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveHalfTo(BPlusTreeInternalPage* new_page) {
   int mid = GetSize()/2;
-  memmove(array_[mid], new_page->array_[0],GetSize()-mid);
-  //maybe set an InValid id is needed?
-  //new_page->array_[0].first = INVLAID_PAGE_ID;
+  memmove(array_[mid], new_page->GetArray(),GetSize()-mid);
+  IncreaseSize(-mid);
+  page->IncreaseSize(mid);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveToLast(BPlusTreeInternalPage* sibling_page){
+  memmove(sibling_page->GetArray()+sibling_page->GetSize(), array_[0], GetSize());
+  sibling_page->IncreaseSize(GetSize());
+  IncreaseSize(GetSize());
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveToFirst(BPlusTreeInternalPage* sibling_page){
+  sibling_page->MoveData(0,GetSize());
+  memmove(sibling_page->GetArray(), array_[0], GetSize());
+  sibling_page->IncreaseSize(GetSize());
+  IncreaseSize(GetSize());
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLastToFirst(BPlusTreeInternalPage* page){
+  page->MoveData(0,1);
+  memmove(page->GetArray()+page->GetSize()-1, array_[0],1);
+  IncreaseSize(-1);
+  page->IncreaseSize(1);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveFirstToLast(BPlusTreeInternalPage* page){
+  memmove(page->GetArray()+page->GetSize(), array_[0],1);
+  MoveData(1,-1);
+  IncreaseSize(-1);
+  page->IncreaseSize(1);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+MappingType* B_PLUS_TREE_INTERNAL_PAGE_TYPE::GetArray(){
+  return array_;
 }
 
 // valuetype for internalNode should be page id_t
