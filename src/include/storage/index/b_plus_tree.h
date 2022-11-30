@@ -64,7 +64,7 @@ class BPlusTree {
 
   //add zjx
   //Insert part
-  auto FindLeafPage(const KeyType &key, const OperationType operation,Transaction* transaction = nullptr)->B_PLUS_TREE_LEAF_PAGE_TYPE*;
+  auto FindLeafPage(const KeyType &key, const OperationType operation,Transaction* transaction = nullptr,int location = 0)->B_PLUS_TREE_LEAF_PAGE_TYPE*;
   auto NewTree()->B_PLUS_TREE_LEAF_PAGE_TYPE*;
   auto SplitPage(LeafPage * page)->LeafPage *;
   auto SplitPage(InternalPage *page)->InternalPage *;

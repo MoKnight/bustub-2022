@@ -22,8 +22,7 @@
 namespace bustub {
 
 template <typename K, typename V>
-    : global_depth_(0), bucket_size_(bucket_size), num_buckets_(1) {
-ExtendibleHashTable<K, V>::ExtendibleHashTable(size_t bucket_size)
+ExtendibleHashTable<K, V>::ExtendibleHashTable(size_t bucket_size): global_depth_(0), bucket_size_(bucket_size), num_buckets_(1) {
       std::shared_ptr new_bucket(new Bucket(bucket_size));
       dir_.push_back(new_bucket);
     }
@@ -207,7 +206,7 @@ auto ExtendibleHashTable<K, V>::Bucket::Insert(const K &key, const V &value) -> 
     }
   }
 
-  list_.emplace(list_.end(),std::move(std::pair<key,value>));
+  list_.emplace(list_.end(),std::move(std::pair<K,V>{key,value}));
   return true;
 
 }

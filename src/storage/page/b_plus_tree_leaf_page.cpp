@@ -27,13 +27,13 @@ namespace bustub {
  * next page id and set max size
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id, int max_size) {
-    //next_page_id?
-    SetPageType(IndexPageType::LEAF_PAGE);
-    SetParentPageId(parent_id);
-    SetPageId(page_id);
-    SetMaxSize(max_size);
-    SetNextPageId(INVALID_PAGE_ID);
+void B_PLUS_TREE_LEAF_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id,page_id_t next_page_id,int max_size){
+  SetPageType(IndexPageType::LEAF_PAGE);
+  SetParentPageId(parent_id);
+  SetPageId(page_id);
+  SetMaxSize(max_size);
+  SetNextPageId(next_page_id);
+  SetSize(0);
 }
 
 /**
@@ -58,6 +58,33 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyAt(int index) const -> KeyType {
   // replace with your own code
   KeyType key = array_.at[index].first;
   return key;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyIndex(
+    const KeyType &key, const KeyComparator &comparator) const->int {
+    int left = 0;
+    int right = GetSize() - 1;
+    int mid;
+    int compareResult;
+    while (left <= right) {
+        mid = left + (right - left) / 2;  //(left + right)
+        compareResult = comparator(array[mid].first, key);
+        if (compareResult == 0) {
+            return mid;
+        } else if (compareResult < 0) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+    return left;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetItem(int index)-> MappingType {
+  assert(index>=0 && index <= GetSize());
+  return array_[index];
 }
 
 INDEX_TEMPLATE_ARGUMENTS

@@ -115,8 +115,8 @@ class ExtendibleHashTable : public HashTable<K, V> {
   /**
    * Bucket class for each hash table bucket that the directory points to.
    */
-  class Bucket {
    public:
+  class Bucket {
     explicit Bucket(size_t size, int depth = 0);
 
     /** @brief Check if a bucket is full. */

@@ -44,11 +44,13 @@ class BPlusTreeLeafPage : public BPlusTreePage {
  public:
   // After creating a new leaf page from buffer pool, must call initialize
   // method to set default values
-  void Init(page_id_t page_id, page_id_t parent_id = INVALID_PAGE_ID, int max_size = LEAF_PAGE_SIZE);
+  void Init(page_id_t page_id, page_id_t parent_id = INVALID_PAGE_ID,page_id_t next_page_id = INVALID_PAGE_ID,int max_size = LEAF_PAGE_SIZE);
   // helper methods
   auto GetNextPageId() const -> page_id_t;
   void SetNextPageId(page_id_t next_page_id);
   auto KeyAt(int index) const -> KeyType;
+  auto KeyIndex(const KeyType &key, const KeyComparator &comparator) const->int;
+  auto GetItem(int index)-> MappingType ;
 
   //add zjx
   bool LookUp(const KeyType &key, ValueType& result,const KeyComparator& comparator) const;
