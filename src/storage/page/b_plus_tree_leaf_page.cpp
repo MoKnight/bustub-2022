@@ -118,7 +118,7 @@ INDEX_TEMPLATE_ARGUMENTS
 bool B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, ValueType& value,const KeyComparator& comparator) const {
   int first = 0;
   int last = GetSize()-1;
-  int mid;
+  int mid = -1;
   int comp_res;
 
   while( first <= last ){
@@ -131,14 +131,20 @@ bool B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, ValueType& value,con
     } else {
       break;
     }
-
-    if (comparator(array[mid].first, key) == 0) {
-      return false; //duplicate key
-    } else {
-      MoveData(mid+1,1);
-      array_[mid+1] = value;
-    }
   } 
+  
+  if( mid == -1){
+    array_[0].first = key;
+    array_[0].second = value;
+  }
+  
+  if (comparator(array[mid].first, key) == 0) {
+    return false; //duplicate key
+  } else {
+    MoveData(mid+1,1);
+    array_[mid+1].first = key;
+    array_[mid+1].second = value;
+  }
   IncreaseSize(1);
   return true;
 }

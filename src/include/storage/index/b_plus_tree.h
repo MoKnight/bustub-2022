@@ -69,7 +69,7 @@ class BPlusTree {
   auto SplitPage(LeafPage * page)->LeafPage *;
   auto SplitPage(InternalPage *page)->InternalPage *;
   template <typename Page_type> Page_type *SplitPage(Page_type *node);
-  auto InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction)->bool;
+  auto InsertIntoLeaf(LeafPage *leaf_page,const KeyType &key, const ValueType &value, Transaction *transaction)->bool;
   auto InsertIntoLeafs( 
     LeafPage *new_leaf, 
     LeafPage *leaf,
@@ -88,14 +88,14 @@ class BPlusTree {
 
   //Move part
   auto AjustRoot(BPlusTreePage* leaf_page,Transaction *transaction)->bool;
-  template <typename Page_type> auto FindSibling(Page_type *node, bool &isLeftSibling)->Page_type*;
+  template <typename Page_type> auto FindSibling(Page_type *node, bool &isLeftSibling,Transaction* transaction)->Page_type*;
   template <typename Page_type> auto MergeOrRedistribute(Page_type* page, Transaction* transaction)->bool;
   template <typename Page_type> auto Merge(Page_type* page, Page_type* sibling_page,bool isLeft)->bool;
   template <typename Page_type> auto Redistribute(Page_type* page, Page_type* sibling_page,InternalPage* parent_page,bool isLeft)->bool;
   
 
   //unlatch the pinned page and unpin the page in buffer pool
-  void UnLatchAndUnpinPageSet(Transaction* transaction, const OperationType operation);
+  void UnLatchAndUnpinPageSet(Transaction* transaction, const OperationType operation,bool flush = true);
   
   // print the B+ tree
   void Print(BufferPoolManager *bpm);

@@ -24,7 +24,7 @@ namespace bustub {
 
 #define INDEX_TEMPLATE_ARGUMENTS template <typename KeyType, typename ValueType, typename KeyComparator>
 
-enum class OperationType{INVALID_OPERATION = -1,Get,DELETE,INSERT};
+enum class OperationType{INVALID_OPERATION = -1,GET,DELETE,INSERT};
 
 // define page type enum
 enum class IndexPageType { INVALID_INDEX_PAGE = 0, LEAF_PAGE, INTERNAL_PAGE };
@@ -62,7 +62,8 @@ class BPlusTreePage {
   auto GetPageId() const -> page_id_t;
   void SetPageId(page_id_t page_id);
 
-  void SetLSN(lsn_t lsn = INVALID_LSN);
+  // void SetLSN(lsn_t lsn = INVALID_LSN);
+  bool IsSafe(OperationType op);
 
  private:
   // member variable, attributes that both internal and leaf page share
