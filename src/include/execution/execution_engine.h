@@ -77,7 +77,7 @@ class ExecutionEngine {
 
  private:
   /**
-   * Poll the executor until exhausted, or exception escapes.
+   * Pull the executor until exhausted, or exception escapes.
    * @param executor The root executor
    * @param plan The plan to execute
    * @param result_set The tuple result set

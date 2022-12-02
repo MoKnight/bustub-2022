@@ -41,6 +41,13 @@ class InsertExecutor : public AbstractExecutor {
   void Init() override;
 
   /**
+   * @brief Get the Plan Node object
+   * 
+   * @return AbstractPlanNode* 
+   */
+  // auto GetPlanNode()->const AbstractPlanNode*;
+
+  /**
    * Yield the number of rows inserted into the table.
    * @param[out] tuple The integer tuple indicating the number of rows inserted into the table
    * @param[out] rid The next tuple RID produced by the insert (ignore, not used)
@@ -57,6 +64,8 @@ class InsertExecutor : public AbstractExecutor {
  private:
   /** The insert plan node to be executed*/
   const InsertPlanNode *plan_;
+  const TableInfo* table_info_;
+  std::unique_ptr<AbstractExecutor> child_executor_;
 };
 
 }  // namespace bustub

@@ -46,6 +46,13 @@ class AbstractExecutor {
    */
   virtual auto Next(Tuple *tuple, RID *rid) -> bool = 0;
 
+  /**
+   * @brief Get the Plan Node object
+   * 
+   * @return AbstractPlanNode* 
+   */
+  // virtual auto GetPlanNode()->const AbstractPlanNode*;
+
   /** @return The schema of the tuples that this executor produces */
   virtual auto GetOutputSchema() const -> const Schema & = 0;
 
