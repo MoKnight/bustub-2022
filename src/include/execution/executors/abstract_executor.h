@@ -51,7 +51,7 @@ class AbstractExecutor {
    * 
    * @return AbstractPlanNode* 
    */
-  // virtual auto GetPlanNode()->const AbstractPlanNode*;
+  virtual auto GetPlanNode()->const AbstractPlanNode* = 0;
 
   /** @return The schema of the tuples that this executor produces */
   virtual auto GetOutputSchema() const -> const Schema & = 0;

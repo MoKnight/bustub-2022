@@ -45,7 +45,7 @@ class InsertExecutor : public AbstractExecutor {
    * 
    * @return AbstractPlanNode* 
    */
-  // auto GetPlanNode()->const AbstractPlanNode*;
+  auto GetPlanNode()->const AbstractPlanNode*;
 
   /**
    * Yield the number of rows inserted into the table.

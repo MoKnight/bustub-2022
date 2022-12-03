@@ -21,9 +21,9 @@ InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *
     : AbstractExecutor(exec_ctx),plan_(plan),child_executor_(std::make_unique<AbstractExecutor>(child_executor)) {
 }
 
-// auto InsertExecutor::GetPlanNode()->const AbstractPlanNode*{
-//     return plan_;
-// }
+auto InsertExecutor::GetPlanNode()->const AbstractPlanNode*{
+    return plan_;
+}
 
 void InsertExecutor::Init() { 
     table_info_ = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
